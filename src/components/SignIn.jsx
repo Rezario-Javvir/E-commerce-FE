@@ -1,26 +1,43 @@
-import { useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
+// CATATAN: Ganti URL di bawah dengan URL API Anda yang BENAR.
+const API_URL = "https://kfbt6z3d-3000.asse.devtunnels.ms/auth/seller/login";
+
 const SignIn = ({ onSuccess, onSwitchToSignUp }) => {
-    const [username, setUsername] = useState("");
-    const [password, setPassword] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const userRef = useRef(null);
+    const errRef = useRef(null);
     const navigate = useNavigate();
 
-    const handleSignIn = async (e) => {
-        e.preventDefault(); 
-        if (!username || !password) {
-            setError("Please fill both fields");
-            return;
+    // State untuk form dan proses
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [errMsg, setErrMsg] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showPopup, setShowPopup] = useState(false);
+    
+    useEffect(() => {
+        if (userRef.current) {
+            userRef.current.focus();
         }
+    }, []);
+
+    useEffect(() => {
+        setErrMsg('');
+        if (showPopup) setShowPopup(false);
+    }, [username, password]);
+
+    const handleSignIn = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setErrMsg('');
+        setShowPopup(false);
 
         try {
-            setLoading(true);
             const response = await axios.post(
-                "https://vfs90dhv-3000.asse.devtunnels.ms/auth/seller/login",
+                API_URL,
                 {
                     username,
                     password,
@@ -32,28 +49,57 @@ const SignIn = ({ onSuccess, onSwitchToSignUp }) => {
                 }
             );
 
-            // Ambil Token dan User langsung dari response.data
-            const { Token, User } = response.data;
+            console.log("Login Seller Response:", response.data);
 
-            // Gabungkan Token dan User ke dalam satu objek
-            const userData = {
-                ...User,
-                token: Token,
+            const responseData = response.data.responsData;
+
+            if (!responseData || !responseData.Token) {
+                throw new Error("Invalid response structure: responsData or Token missing.");
+            }
+
+            // PERBAIKAN FINAL DAN BENAR:
+            // Simpan Token dan seluruh responsData di KUNCI TUNGGAL: "user".
+            const userToStore = {
+                // Token sangat penting untuk otentikasi cepat
+                token: responseData.Token,
+                // Ini KRITIS untuk Home.js dan Products.js
+                responsData: responseData,
             };
 
-            // Simpan objek yang sudah lengkap ke localStorage
-            localStorage.setItem("user", JSON.stringify(userData));
+            // Simpan HANYA SATU KEY di localStorage: "user".
+            localStorage.setItem("user", JSON.stringify(userToStore));
             
-            setError(null);
-            onSuccess();
-            navigate('/dashboard'); 
+            // Hapus key yang membingungkan jika masih ada
+            localStorage.removeItem("loginData");
+
+            // Reset form
+            setUsername('');
+            setPassword('');
+            setErrMsg(null);
+            
+            // Beri tahu komponen Home bahwa login berhasil
+            if (onSuccess) onSuccess(response.data);
+            
+            // Kembalikan navigasi ke Home (/)
+            navigate('/');
+
         } catch (err) {
             console.error("Login failed:", err);
-            if (err.response?.status === 401) {
-                setError("Invalid username or password");
+            let message = '';
+            
+            if (!err.response) {
+                message = 'No Server Response. Check Network or CORS configuration on the server.';
+            } else if (err.response?.status === 401) {
+                message = 'Invalid Username or Password';
+            } else if (err.response?.status === 400) {
+                message = err.response?.data?.Message || 'Bad Request.';
             } else {
-                setError(err.response?.data?.message || "Login failed due to server error or network issue.");
+                message = err.response?.data?.Message || 'Login Failed due to server error.';
             }
+
+            setErrMsg(message);
+            setShowPopup(true);
+            
         } finally {
             setLoading(false);
         }
@@ -62,12 +108,19 @@ const SignIn = ({ onSuccess, onSwitchToSignUp }) => {
     return (
         <div className="fixed inset-0 bg-gray-100 bg-opacity-60 flex items-center justify-center z-50">
             <div className="bg-gradient-to-t from-blue-300 to-white p-8 shadow-lg max-w-md w-full flex flex-col gap-4 items-center justify-center">
-                <h2 className="text-2xl font-bold text-center text-blue-600">Sign in as Seller</h2>
+                
+                {/* Judul */}
+                <h2 className="text-2xl font-bold text-center text-blue-600">
+                    Sign in as Seller
+                </h2>
+
+                {/* Form Login */}
                 <form onSubmit={handleSignIn} className="w-full">
                     <input
                         type="text"
                         placeholder="Username"
                         value={username}
+                        ref={userRef}
                         onChange={(e) => setUsername(e.target.value)}
                         className="border border-gray-300 p-2 rounded w-full bg-gray-100 shadow-md"
                         required
@@ -98,7 +151,8 @@ const SignIn = ({ onSuccess, onSwitchToSignUp }) => {
                             )}
                         </button>
                     </div>
-                    {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+                    
+                    {/* Pesan Sign Up */}
                     <p className="font-semibold text-center mt-4">
                         Don't have an account?{" "}
                         <button
@@ -109,6 +163,8 @@ const SignIn = ({ onSuccess, onSwitchToSignUp }) => {
                             Sign up
                         </button>
                     </p>
+                    
+                    {/* Tombol Submit */}
                     <button
                         type="submit"
                         disabled={loading}
@@ -120,6 +176,23 @@ const SignIn = ({ onSuccess, onSwitchToSignUp }) => {
                     </button>
                 </form>
             </div>
+
+            {/* Popup untuk pesan gagal */}
+            {showPopup && (
+                <div className="fixed inset-0 bg-white bg-opacity-50 flex justify-center items-center z-50">
+                    <div className="bg-white p-6 shadow-xl max-w-sm w-full text-center border-4 border-red-500 rounded-lg">
+                        <h2 className="text-2xl font-bold text-red-500 mb-4">Login Failed</h2>
+                        <p ref={errRef} className="text-gray-700 mb-6">{errMsg}</p>
+
+                        <button
+                            onClick={() => setShowPopup(false)}
+                            className="bg-blue-400 text-white px-4 py-2 hover:bg-blue-600 transition-colors rounded-md"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

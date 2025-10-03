@@ -2,29 +2,32 @@ import { useState } from "react";
 import axios from "axios";
 
 const SignUp = ({ onSuccess, onSwitchToSignIn }) => {
+    // State sudah termasuk storeName
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState("");
-    const [storeName, setStoreName] = useState("");
+    const [storeName, setStoreName] = useState(""); // State untuk Store Name
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
 
     const handleRegister = async () => {
+        // --- Perbaikan 1: Validasi storeName ---
         if (!username || !password || !email || !storeName) {
-            setError("Please fill all the fields");
+            setError("Please fill all the fields, including Store Name.");
             return;
         }
 
         try {
             setLoading(true);
             const response = await axios.post(
-                "https://vfs90dhv-3000.asse.devtunnels.ms/auth/seller/register",
+                "https://kfbt6z3d-3000.asse.devtunnels.ms/auth/seller/register",
                 {
                     username,
                     password,
                     email,
-                    store_name: storeName, // Menambahkan store_name ke data yang dikirim
+                    // --- Perbaikan 2: Menambahkan store_name ke payload API ---
+                    store_name: storeName, 
                     role: "seller",
                 },
                 {
@@ -39,7 +42,7 @@ const SignUp = ({ onSuccess, onSwitchToSignIn }) => {
             onSuccess(); // Panggil callback setelah berhasil
         } catch (err) {
             if (err.response?.status === 409) {
-                setError("Username already taken");
+                setError("Username or Email already registered.");
             } else {
                 setError(err.response?.data?.message || "Registration failed");
             }
@@ -53,14 +56,15 @@ const SignUp = ({ onSuccess, onSwitchToSignIn }) => {
             <div className="bg-linear-to-t from-blue-300 to-white p-8 shadow-lg max-w-md w-full flex flex-col gap-4 items-center justify-center rounded-md">
                 <h2 className="text-2xl font-bold text-center text-blue-600">Sign up as Seller</h2>
 
+                {/* Input Username */}
                 <input
                     type="text"
                     placeholder="Username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="border border-gray-300 p-2 rounded w-full bg-gray-100 shadow-md"
+                    className="border border-gray-300 p-2 rounded w-full bg-gray-100 shadow-md focus:ring-2 focus:ring-blue-500"
                 />
-                
+
                 {/* Password field with toggle visibility */}
                 <div className="relative w-full">
                     <input
@@ -68,7 +72,7 @@ const SignUp = ({ onSuccess, onSwitchToSignIn }) => {
                         placeholder="Password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="border border-gray-300 p-2 rounded w-full pr-10 bg-gray-100 shadow-md"
+                        className="border border-gray-300 p-2 rounded w-full pr-10 bg-gray-100 shadow-md focus:ring-2 focus:ring-blue-500"
                     />
                     <button
                         type="button"
@@ -87,31 +91,32 @@ const SignUp = ({ onSuccess, onSwitchToSignIn }) => {
                         )}
                     </button>
                 </div>
-                
+
+                {/* Input Email */}
                 <input
-                    type="text"
+                    type="email" // Menggunakan type email untuk validasi dasar browser
                     placeholder="Email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="border border-gray-300 p-2 rounded w-full bg-gray-100 shadow-md"
+                    className="border border-gray-300 p-2 rounded w-full bg-gray-100 shadow-md focus:ring-2 focus:ring-blue-500"
                 />
 
-                {/* Store Name Field */}
+                {/* --- Perbaikan 3: Store Name Field Ditambahkan --- */}
                 <input
                     type="text"
                     placeholder="Store Name"
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
-                    className="border border-gray-300 p-2 rounded w-full bg-gray-100 shadow-md"
+                    className="border border-gray-300 p-2 rounded w-full bg-gray-100 shadow-md focus:ring-2 focus:ring-blue-500"
                 />
 
-                {error && <p className="text-red-500 text-sm">{error}</p>}
+                {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
 
-                <p className="font-semibold text-center">
+                <p className="font-semibold text-center text-gray-700">
                     Already have an account?{" "}
                     <button 
                         onClick={onSwitchToSignIn}
-                        className="text-blue-400 font-bold"
+                        className="text-blue-500 font-bold hover:text-blue-700 transition-colors"
                     >
                         Sign in
                     </button>
@@ -119,8 +124,8 @@ const SignUp = ({ onSuccess, onSwitchToSignIn }) => {
                 <button
                     onClick={handleRegister}
                     disabled={loading}
-                    className={`bg-blue-500 text-white p-2 rounded font-semibold hover:bg-blue-600 transition-colors w-full ${
-                        loading ? "opacity-50 cursor-not-allowed" : ""
+                    className={`bg-blue-500 text-white p-3 rounded-lg font-bold text-lg hover:bg-blue-600 transition-colors w-full ${
+                        loading ? "opacity-60 cursor-not-allowed" : ""
                     }`}
                 >
                     {loading ? "Registering..." : "Continue"}
